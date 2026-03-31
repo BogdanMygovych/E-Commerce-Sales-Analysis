@@ -1,282 +1,392 @@
 -- ============================================================================
--- SUPERSTORE SALES ANALYSIS - SQL QUERIES
+-- SUPERSTORE SALES ANALYSIS - PRODUCTION SQL QUERIES
 -- ============================================================================
--- Professional SQL queries for the Superstore dataset analysis
--- Database: Superstore
--- Last Updated: 2026-03-31
+-- Comprehensive analytics queries for business intelligence
+-- Last Updated: March 31, 2026
 -- ============================================================================
 
-
 -- ============================================================================
--- QUERY 1: TOTAL REVENUE
+-- QUERY 1: EXECUTIVE SUMMARY - KEY METRICS
 -- ============================================================================
--- Calculate the total revenue across all sales
+-- Overview of business performance across all dimensions
 SELECT 
-    SUM(sales) AS total_revenue
+    COUNT(DISTINCT ORDER_ID) AS total_orders,
+    COUNT(DISTINCT CUSTOMER_ID) AS unique_customers,
+    COUNT(DISTINCT REGION) AS regions,
+    COUNT(DISTINCT CATEGORY) AS categories,
+    ROUND(SUM(SALES), 2) AS total_revenue,
+    ROUND(SUM(PROFIT), 2) AS total_profit,
+    ROUND(SUM(PROFIT) / SUM(SALES) * 100, 2) AS profit_margin_pct,
+    ROUND(AVG(SALES), 2) AS avg_order_value,
+    ROUND(SUM(QUANTITY), 0) AS units_sold
 FROM 
     superstore_sales
 WHERE 
-    sales > 0
-    AND order_date IS NOT NULL;
+    SALES > 0 AND ORDER_DATE IS NOT NULL;
 
 
 -- ============================================================================
--- QUERY 2: TOTAL PROFIT
+-- QUERY 2: REVENUE BY REGION (RANKED)
 -- ============================================================================
--- Calculate the total profit and profit margin
+-- Regional performance analysis with market share and rankings
 SELECT 
-    SUM(profit) AS total_profit,
-    SUM(sales) AS total_sales,
-    ROUND(SUM(profit) / SUM(sales) * 100, 2) AS profit_margin_percentage
+    REGION,
+    COUNT(DISTINCT ORDER_ID) AS order_count,
+    COUNT(DISTINCT CUSTOMER_ID) AS customer_count,
+    ROUND(SUM(SALES), 2) AS region_revenue,
+    ROUND(AVG(SALES), 2) AS avg_order_value,
+    ROUND(SUM(PROFIT), 2) AS region_profit,
+    ROUND(SUM(PROFIT) / SUM(SALES) * 100, 2) AS profit_margin_pct,
+    ROUND(SUM(SALES) / (SELECT SUM(SALES) FROM superstore_sales) * 100, 2) AS market_share_pct,
+    RANK() OVER (ORDER BY SUM(SALES) DESC) AS revenue_rank
 FROM 
     superstore_sales
 WHERE 
-    sales > 0
-    AND profit IS NOT NULL;
-
-
--- ============================================================================
--- QUERY 3: REVENUE BY REGION
--- ============================================================================
--- Analyze revenue distribution across regions with rankings
-SELECT 
-    region,
-    COUNT(DISTINCT order_id) AS number_of_orders,
-    COUNT(DISTINCT customer_id) AS number_of_customers,
-    ROUND(SUM(sales), 2) AS total_revenue,
-    ROUND(AVG(sales), 2) AS average_order_value,
-    ROUND(SUM(profit), 2) AS total_profit,
-    RANK() OVER (ORDER BY SUM(sales) DESC) AS revenue_rank
-FROM 
-    superstore_sales
-WHERE 
-    sales > 0
+    SALES > 0
 GROUP BY 
-    region
+    REGION
 ORDER BY 
-    total_revenue DESC;
+    region_revenue DESC;
 
 
 -- ============================================================================
--- QUERY 4: TOP 20 CUSTOMERS BY REVENUE
+-- QUERY 3: TOP 20 CUSTOMERS BY LIFETIME VALUE
 -- ============================================================================
--- Identify the most valuable customers by lifetime revenue
+-- VIP customer identification for retention and loyalty programs
 SELECT 
-    customer_id,
-    customer_name,
-    COUNT(DISTINCT order_id) AS number_of_orders,
-    ROUND(SUM(sales), 2) AS lifetime_revenue,
-    ROUND(SUM(profit), 2) AS lifetime_profit,
-    ROUND(AVG(sales), 2) AS average_order_value,
-    MAX(order_date) AS last_order_date
+    CUSTOMER_ID,
+    CUSTOMER_NAME,
+    COUNT(DISTINCT ORDER_ID) AS transaction_count,
+    ROUND(SUM(SALES), 2) AS lifetime_revenue,
+    ROUND(SUM(PROFIT), 2) AS lifetime_profit,
+    ROUND(AVG(SALES), 2) AS avg_order_value,
+    ROUND(SUM(QUANTITY), 0) AS total_units,
+    MAX(ORDER_DATE) AS last_purchase_date,
+    MIN(ORDER_DATE) AS first_purchase_date,
+    DATEDIFF(MAX(ORDER_DATE), MIN(ORDER_DATE)) AS customer_tenure_days,
+    RANK() OVER (ORDER BY SUM(SALES) DESC) AS customer_rank
 FROM 
     superstore_sales
 WHERE 
-    sales > 0
+    SALES > 0
 GROUP BY 
-    customer_id,
-    customer_name
+    CUSTOMER_ID, CUSTOMER_NAME
 ORDER BY 
     lifetime_revenue DESC
 LIMIT 20;
 
 
 -- ============================================================================
--- QUERY 5: CATEGORY PERFORMANCE ANALYSIS
+-- QUERY 4: CATEGORY PERFORMANCE MATRIX
 -- ============================================================================
--- Detailed performance metrics by product category
+-- Profitability analysis by category and subcategory
 SELECT 
-    category,
-    sub_category,
-    COUNT(DISTINCT order_id) AS total_orders,
-    COUNT(DISTINCT customer_id) AS unique_customers,
-    ROUND(SUM(sales), 2) AS total_sales,
-    ROUND(SUM(profit), 2) AS total_profit,
-    ROUND(SUM(profit) / SUM(sales) * 100, 2) AS profit_margin_percentage,
-    ROUND(AVG(sales), 2) AS average_order_value,
-    ROUND(SUM(quantity), 0) AS units_sold
-FROM 
-    superstore_sales
-WHERE 
-    sales > 0
-GROUP BY 
-    category,
-    sub_category
-ORDER BY 
-    total_sales DESC;
-
-
--- ============================================================================
--- QUERY 6: MONTHLY SALES TRENDS
--- ============================================================================
--- Track sales performance and trends by month and year
-SELECT 
-    EXTRACT(YEAR FROM order_date) AS year,
-    EXTRACT(MONTH FROM order_date) AS month,
-    TO_CHAR(order_date, 'YYYY-MM') AS year_month,
-    TO_CHAR(order_date, 'Month') AS month_name,
-    COUNT(DISTINCT order_id) AS number_of_orders,
-    COUNT(DISTINCT customer_id) AS unique_customers,
-    ROUND(SUM(sales), 2) AS monthly_revenue,
-    ROUND(SUM(profit), 2) AS monthly_profit,
-    ROUND(SUM(profit) / SUM(sales) * 100, 2) AS profit_margin,
-    ROUND(AVG(sales), 2) AS average_order_value
-FROM 
-    superstore_sales
-WHERE 
-    sales > 0
-    AND order_date IS NOT NULL
-GROUP BY 
-    EXTRACT(YEAR FROM order_date),
-    EXTRACT(MONTH FROM order_date),
-    TO_CHAR(order_date, 'YYYY-MM'),
-    TO_CHAR(order_date, 'Month')
-ORDER BY 
-    year DESC,
-    month DESC;
-
-
--- ============================================================================
--- QUERY 7: CUSTOMER SEGMENTATION BY SPENDING
--- ============================================================================
--- Segment customers into high, medium, and low value categories
-SELECT 
+    CATEGORY,
+    SUB_CATEGORY,
+    COUNT(DISTINCT ORDER_ID) AS orders,
+    COUNT(DISTINCT CUSTOMER_ID) AS unique_customers,
+    ROUND(SUM(SALES), 2) AS category_revenue,
+    ROUND(SUM(PROFIT), 2) AS category_profit,
+    ROUND(SUM(PROFIT) / SUM(SALES) * 100, 2) AS profit_margin_pct,
+    ROUND(SUM(QUANTITY), 0) AS units_sold,
+    ROUND(AVG(SALES), 2) AS avg_order_value,
     CASE 
-        WHEN total_revenue >= (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY total_revenue) 
-                               FROM (SELECT SUM(sales) AS total_revenue FROM superstore_sales GROUP BY customer_id))
-        THEN 'High Value'
-        WHEN total_revenue >= (SELECT PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY total_revenue) 
-                               FROM (SELECT SUM(sales) AS total_revenue FROM superstore_sales GROUP BY customer_id))
-        THEN 'Medium Value'
-        ELSE 'Low Value'
-    END AS customer_segment,
-    COUNT(*) AS number_of_customers,
-    ROUND(AVG(total_revenue), 2) AS average_revenue,
-    ROUND(MIN(total_revenue), 2) AS min_revenue,
-    ROUND(MAX(total_revenue), 2) AS max_revenue
+        WHEN SUM(PROFIT) / SUM(SALES) >= 0.20 THEN 'High Margin'
+        WHEN SUM(PROFIT) / SUM(SALES) >= 0.10 THEN 'Medium Margin'
+        ELSE 'Low Margin'
+    END AS margin_classification
 FROM 
-    (SELECT 
-        customer_id,
-        SUM(sales) AS total_revenue
+    superstore_sales
+WHERE 
+    SALES > 0
+GROUP BY 
+    CATEGORY, SUB_CATEGORY
+ORDER BY 
+    category_revenue DESC;
+
+
+-- ============================================================================
+-- QUERY 5: MONTHLY SALES TRENDS & SEASONALITY
+-- ============================================================================
+-- Year-over-year monthly performance for forecasting
+SELECT 
+    YEAR(ORDER_DATE) AS sales_year,
+    MONTH(ORDER_DATE) AS sales_month,
+    FORMAT(ORDER_DATE, 'yyyy-MM') AS year_month,
+    FORMAT(ORDER_DATE, 'MMMM') AS month_name,
+    COUNT(DISTINCT ORDER_ID) AS monthly_orders,
+    COUNT(DISTINCT CUSTOMER_ID) AS monthly_customers,
+    ROUND(SUM(SALES), 2) AS monthly_revenue,
+    ROUND(SUM(PROFIT), 2) AS monthly_profit,
+    ROUND(SUM(PROFIT) / SUM(SALES) * 100, 2) AS margin_pct,
+    ROUND(SUM(QUANTITY), 0) AS units,
+    ROUND(AVG(SALES), 2) AS avg_order_value
+FROM 
+    superstore_sales
+WHERE 
+    SALES > 0 AND ORDER_DATE IS NOT NULL
+GROUP BY 
+    YEAR(ORDER_DATE), MONTH(ORDER_DATE), FORMAT(ORDER_DATE, 'yyyy-MM'), FORMAT(ORDER_DATE, 'MMMM')
+ORDER BY 
+    sales_year DESC, sales_month DESC;
+
+
+-- ============================================================================
+-- QUERY 6: CUSTOMER SEGMENT ANALYSIS (RFM MODEL)
+-- ============================================================================
+-- Recency, Frequency, Monetary segmentation for targeted marketing
+WITH customer_metrics AS (
+    SELECT 
+        CUSTOMER_ID,
+        CUSTOMER_NAME,
+        DATEDIFF(DAY, MAX(ORDER_DATE), (SELECT MAX(ORDER_DATE) FROM superstore_sales)) AS recency_days,
+        COUNT(DISTINCT ORDER_ID) AS frequency,
+        ROUND(SUM(SALES), 2) AS monetary_value
     FROM 
         superstore_sales
+    WHERE 
+        SALES > 0
     GROUP BY 
-        customer_id)
+        CUSTOMER_ID, CUSTOMER_NAME
+)
+SELECT 
+    CUSTOMER_ID,
+    CUSTOMER_NAME,
+    recency_days,
+    frequency,
+    monetary_value,
+    CASE 
+        WHEN recency_days <= 30 AND frequency >= 5 AND monetary_value >= 1000 THEN 'Champions'
+        WHEN recency_days <= 60 AND frequency >= 3 AND monetary_value >= 500 THEN 'Loyal Customers'
+        WHEN recency_days <= 90 AND frequency >= 2 THEN 'Promising'
+        WHEN recency_days > 180 THEN 'At Risk'
+        ELSE 'Emerging'
+    END AS customer_segment
+FROM 
+    customer_metrics
+ORDER BY 
+    monetary_value DESC;
+
+
+-- ============================================================================
+-- QUERY 7: DISCOUNT IMPACT ANALYSIS
+-- ============================================================================
+-- Understanding how discounts affect profitability
+SELECT 
+    CASE 
+        WHEN DISCOUNT = 0 THEN 'No Discount'
+        WHEN DISCOUNT <= 0.10 THEN '0-10% Discount'
+        WHEN DISCOUNT <= 0.20 THEN '10-20% Discount'
+        ELSE '> 20% Discount'
+    END AS discount_bucket,
+    COUNT(DISTINCT ORDER_ID) AS order_count,
+    COUNT(DISTINCT CUSTOMER_ID) AS customer_count,
+    ROUND(AVG(SALES), 2) AS avg_order_value,
+    ROUND(SUM(SALES), 2) AS total_sales,
+    ROUND(SUM(PROFIT), 2) AS total_profit,
+    ROUND(SUM(PROFIT) / SUM(SALES) * 100, 2) AS profit_margin_pct,
+    ROUND(AVG(PROFIT), 2) AS avg_profit_per_order
+FROM 
+    superstore_sales
+WHERE 
+    SALES > 0
 GROUP BY 
-    customer_segment
+    CASE 
+        WHEN DISCOUNT = 0 THEN 'No Discount'
+        WHEN DISCOUNT <= 0.10 THEN '0-10% Discount'
+        WHEN DISCOUNT <= 0.20 THEN '10-20% Discount'
+        ELSE '> 20% Discount'
+    END
 ORDER BY 
     CASE 
-        WHEN customer_segment = 'High Value' THEN 1
-        WHEN customer_segment = 'Medium Value' THEN 2
-        ELSE 3
+        WHEN discount_bucket = 'No Discount' THEN 1
+        WHEN discount_bucket = '0-10% Discount' THEN 2
+        WHEN discount_bucket = '10-20% Discount' THEN 3
+        ELSE 4
     END;
 
 
 -- ============================================================================
--- QUERY 8: REGIONAL PERFORMANCE COMPARISON
+-- QUERY 8: GEOGRAPHIC PERFORMANCE (STATE LEVEL)
 -- ============================================================================
--- Compare performance metrics across regions
+-- State-by-state performance for insights and targeted strategies
 SELECT 
-    region,
-    category,
-    COUNT(DISTINCT order_id) AS orders,
-    ROUND(SUM(sales), 2) AS revenue,
-    ROUND(SUM(profit), 2) AS profit,
-    ROUND(SUM(profit) / SUM(sales) * 100, 2) AS profit_margin
+    REGION,
+    STATE,
+    COUNT(DISTINCT ORDER_ID) AS state_orders,
+    COUNT(DISTINCT CUSTOMER_ID) AS state_customers,
+    ROUND(SUM(SALES), 2) AS state_revenue,
+    ROUND(SUM(PROFIT), 2) AS state_profit,
+    ROUND(SUM(PROFIT) / SUM(SALES) * 100, 2) AS profit_margin_pct,
+    RANK() OVER (PARTITION BY REGION ORDER BY SUM(SALES) DESC) AS state_rank_in_region
 FROM 
     superstore_sales
 WHERE 
-    sales > 0
+    SALES > 0
 GROUP BY 
-    region,
-    category
+    REGION, STATE
 ORDER BY 
-    region,
-    revenue DESC;
+    REGION, state_revenue DESC;
 
 
 -- ============================================================================
--- QUERY 9: YEAR-OVER-YEAR GROWTH ANALYSIS
+-- QUERY 9: PRODUCT PERFORMANCE RANKINGS
 -- ============================================================================
--- Calculate YoY growth rates for revenue and profit
-WITH yearly_metrics AS (
+-- Top and bottom performing products by profitability
+SELECT 
+    PRODUCT_NAME,
+    CATEGORY,
+    SUB_CATEGORY,
+    COUNT(DISTINCT ORDER_ID) AS times_ordered,
+    ROUND(SUM(QUANTITY), 0) AS units_sold,
+    ROUND(SUM(SALES), 2) AS total_sales,
+    ROUND(SUM(PROFIT), 2) AS total_profit,
+    ROUND(SUM(PROFIT) / SUM(SALES) * 100, 2) AS profit_margin_pct,
+    ROUND(AVG(PROFIT), 2) AS avg_profit_per_sale,
+    RANK() OVER (ORDER BY SUM(PROFIT) DESC) AS profit_rank,
+    RANK() OVER (ORDER BY COUNT(DISTINCT ORDER_ID) DESC) AS popularity_rank
+FROM 
+    superstore_sales
+WHERE 
+    SALES > 0
+GROUP BY 
+    PRODUCT_NAME, CATEGORY, SUB_CATEGORY
+ORDER BY 
+    total_profit DESC;
+
+
+-- ============================================================================
+-- QUERY 10: YEAR-OVER-YEAR GROWTH ANALYSIS
+-- ============================================================================
+-- Calculate growth rates for revenue and profit trends
+WITH yearly_performance AS (
     SELECT 
-        EXTRACT(YEAR FROM order_date) AS year,
-        ROUND(SUM(sales), 2) AS annual_revenue,
-        ROUND(SUM(profit), 2) AS annual_profit
+        YEAR(ORDER_DATE) AS fiscal_year,
+        ROUND(SUM(SALES), 2) AS annual_revenue,
+        ROUND(SUM(PROFIT), 2) AS annual_profit,
+        COUNT(DISTINCT ORDER_ID) AS annual_orders,
+        COUNT(DISTINCT CUSTOMER_ID) AS annual_customers
     FROM 
         superstore_sales
     WHERE 
-        sales > 0
+        SALES > 0 AND ORDER_DATE IS NOT NULL
     GROUP BY 
-        EXTRACT(YEAR FROM order_date)
+        YEAR(ORDER_DATE)
 )
 SELECT 
-    year,
+    fiscal_year,
     annual_revenue,
     annual_profit,
-    ROUND((annual_revenue - LAG(annual_revenue) OVER (ORDER BY year)) / 
-          LAG(annual_revenue) OVER (ORDER BY year) * 100, 2) AS revenue_growth_percentage,
-    ROUND((annual_profit - LAG(annual_profit) OVER (ORDER BY year)) / 
-          LAG(annual_profit) OVER (ORDER BY year) * 100, 2) AS profit_growth_percentage
+    annual_orders,
+    annual_customers,
+    ROUND((annual_revenue - LAG(annual_revenue) OVER (ORDER BY fiscal_year)) / 
+          LAG(annual_revenue) OVER (ORDER BY fiscal_year) * 100, 2) AS revenue_growth_pct,
+    ROUND((annual_profit - LAG(annual_profit) OVER (ORDER BY fiscal_year)) / 
+          LAG(annual_profit) OVER (ORDER BY fiscal_year) * 100, 2) AS profit_growth_pct,
+    ROUND((annual_orders - LAG(annual_orders) OVER (ORDER BY fiscal_year)) / 
+          LAG(annual_orders) OVER (ORDER BY fiscal_year) * 100, 2) AS order_growth_pct
 FROM 
-    yearly_metrics
+    yearly_performance
 ORDER BY 
-    year ASC;
+    fiscal_year ASC;
 
 
 -- ============================================================================
--- QUERY 10: PRODUCT PERFORMANCE INSIGHTS
+-- QUERY 11: SHIPPING MODE EFFICIENCY
 -- ============================================================================
--- Identify top and bottom performing products
+-- Analyze profit margins by shipping method
 SELECT 
-    product_name,
-    category,
-    COUNT(DISTINCT order_id) AS times_ordered,
-    ROUND(SUM(sales), 2) AS total_sales,
-    ROUND(SUM(profit), 2) AS total_profit,
-    ROUND(AVG(profit), 2) AS average_profit_per_sale,
-    ROUND(SUM(quantity), 0) AS units_sold,
-    RANK() OVER (ORDER BY SUM(profit) DESC) AS profit_rank
+    SHIP_MODE,
+    COUNT(DISTINCT ORDER_ID) AS orders,
+    ROUND(AVG(DATEDIFF(DAY, ORDER_DATE, SHIP_DATE)), 0) AS avg_days_to_ship,
+    ROUND(SUM(SALES), 2) AS mode_revenue,
+    ROUND(SUM(PROFIT), 2) AS mode_profit,
+    ROUND(SUM(PROFIT) / SUM(SALES) * 100, 2) AS profit_margin_pct,
+    ROUND(AVG(SALES), 2) AS avg_order_value
 FROM 
     superstore_sales
 WHERE 
-    sales > 0
+    SALES > 0
 GROUP BY 
-    product_name,
-    category
+    SHIP_MODE
 ORDER BY 
-    total_profit DESC
-LIMIT 25;
+    mode_profit DESC;
 
 
 -- ============================================================================
--- NOTE ON DATABASE SETUP
+-- QUERY 12: PROFITABILITY DISTRIBUTION (PARETO ANALYSIS)
 -- ============================================================================
--- To use these queries, ensure your database contains a table with the following structure:
--- 
+-- Identify which customers/products drive profit (80/20 rule)
+WITH profit_ranked AS (
+    SELECT 
+        CUSTOMER_ID,
+        CUSTOMER_NAME,
+        ROUND(SUM(PROFIT), 2) AS customer_profit,
+        RANK() OVER (ORDER BY SUM(PROFIT) DESC) AS profit_rank,
+        ROUND(SUM(PROFIT) / (SELECT SUM(PROFIT) FROM superstore_sales) * 100, 2) AS profit_contribution_pct
+    FROM 
+        superstore_sales
+    WHERE 
+        PROFIT IS NOT NULL
+    GROUP BY 
+        CUSTOMER_ID, CUSTOMER_NAME
+)
+SELECT 
+    profit_rank,
+    CUSTOMER_ID,
+    CUSTOMER_NAME,
+    customer_profit,
+    profit_contribution_pct,
+    SUM(profit_contribution_pct) OVER (ORDER BY profit_rank) AS cumulative_profit_pct,
+    CASE 
+        WHEN SUM(profit_contribution_pct) OVER (ORDER BY profit_rank) <= 20 THEN 'Top 20% Contributors'
+        WHEN SUM(profit_contribution_pct) OVER (ORDER BY profit_rank) <= 50 THEN 'Top 50% Contributors'
+        WHEN SUM(profit_contribution_pct) OVER (ORDER BY profit_rank) <= 80 THEN 'Top 80% Contributors'
+        ELSE 'Remaining Contributors'
+    END AS profit_tier
+FROM 
+    profit_ranked
+WHERE 
+    profit_rank <= 100
+ORDER BY 
+    profit_rank ASC;
+
+
+-- ============================================================================
+-- NOTES & BEST PRACTICES
+-- ============================================================================
+--
+-- DATABASE SETUP:
+-- Ensure your database contains a table matching this structure:
+--
 -- CREATE TABLE superstore_sales (
---     order_id VARCHAR(50),
---     order_date DATE,
---     ship_date DATE,
---     ship_mode VARCHAR(50),
---     customer_id VARCHAR(50),
---     customer_name VARCHAR(100),
---     segment VARCHAR(50),
---     region VARCHAR(50),
---     state VARCHAR(50),
---     postal_code VARCHAR(20),
---     country VARCHAR(50),
---     market VARCHAR(50),
---     category VARCHAR(50),
---     sub_category VARCHAR(50),
---     product_name VARCHAR(255),
---     sales DECIMAL(10, 2),
---     quantity INT,
---     discount DECIMAL(5, 2),
---     profit DECIMAL(10, 2),
---     PRIMARY KEY (order_id)
+--     ORDER_ID VARCHAR(50) PRIMARY KEY,
+--     ORDER_DATE DATE,
+--     SHIP_DATE DATE,
+--     SHIP_MODE VARCHAR(50),
+--     CUSTOMER_ID VARCHAR(50),
+--     CUSTOMER_NAME VARCHAR(100),
+--     SEGMENT VARCHAR(50),
+--     REGION VARCHAR(50),
+--     STATE VARCHAR(50),
+--     POSTAL_CODE VARCHAR(20),
+--     COUNTRY VARCHAR(100),
+--     CATEGORY VARCHAR(50),
+--     SUB_CATEGORY VARCHAR(50),
+--     PRODUCT_ID VARCHAR(50),
+--     PRODUCT_NAME VARCHAR(255),
+--     SALES DECIMAL(10, 2),
+--     QUANTITY INT,
+--     DISCOUNT DECIMAL(5, 2),
+--     PROFIT DECIMAL(10, 2)
 -- );
 --
--- Adjust table and column names as necessary to match your actual schema.
+-- QUERY OPTIMIZATION TIPS:
+-- 1. Add indexes on frequently filtered columns (ORDER_DATE, REGION, CUSTOMER_ID)
+-- 2. Use partitioning by YEAR(ORDER_DATE) for large datasets
+-- 3. Consider materialized views for frequently run aggregations
+-- 4. Use appropriate date functions for your SQL dialect (SQL Server, PostgreSQL, MySQL)
+-- 5. Monitor execution plans and add indexes on JOIN columns
+--
 -- ============================================================================
+
