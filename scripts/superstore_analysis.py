@@ -42,10 +42,23 @@ def load_data(filepath):
     print("=" * 70)
     
     try:
-        df = pd.read_csv(filepath)
-        print(f"✓ Data loaded successfully from: {filepath}")
-        print(f"✓ Dataset shape: {df.shape[0]} rows × {df.shape[1]} columns")
-        return df
+        # Try multiple encodings to handle different file formats
+        encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+        df = None
+        
+        for encoding in encodings:
+            try:
+                df = pd.read_csv(filepath, encoding=encoding)
+                print(f"✓ Data loaded successfully from: {filepath}")
+                print(f"✓ Used encoding: {encoding}")
+                print(f"✓ Dataset shape: {df.shape[0]} rows × {df.shape[1]} columns")
+                return df
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        
+        if df is None:
+            raise ValueError("Could not load CSV with any standard encoding")
+            
     except FileNotFoundError:
         print(f"✗ File not found: {filepath}")
         raise
