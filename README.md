@@ -2,15 +2,7 @@
 
 Professional data analytics portfolio project analyzing 9,994 sales transactions across multiple regions and product categories.
 
-## Visualizations
-
-![Revenue Over Time](outputs/charts/01_revenue_over_time.png)
-
-![Revenue by Region](outputs/charts/02_revenue_by_region.png)
-
-![Profit by Category](outputs/charts/03_profit_by_category.png)
-
-![Top 10 Customers](outputs/charts/04_top_customers.png)
+![Dashboard](outputs/charts/00_combined_dashboard.png)
 
 ## Key Metrics
 
